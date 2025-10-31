@@ -1,0 +1,145 @@
+
+const express = require('express');
+const jwt = require('jsonwebtoken');
+const app = express();
+const port = 3000;
+
+// Middleware to parse JSON bodies from incoming requests
+app.use(express.json());
+
+// --- Configuration ---
+// Note: In a real application, keep this secret in an environment variable!
+const JWT_SECRET = 'your_super_secret_key_123';
+const TOKEN_EXPIRATION = '1h';
+
+// Sample Users with Roles
+const USERS = [
+    { id: 1, username: 'adminUser', password: 'password123', role: 'Admin' },
+    { id: 2, username: 'modUser', password: 'password123', role: 'Moderator' },
+    { id: 3, username: 'basicUser', password: 'password123', role: 'User' },
+];
+
+// ----------------------------------------------------------------------
+// 1. JWT Verification Middleware (Modified to extract role)
+// ----------------------------------------------------------------------
+const authenticateToken = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (token == null) {
+        return res.status(401).json({ message: 'Token missing or malformed' });
+    }
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) {
+            return res.status(403).json({ message: 'Invalid or expired token' });
+        }
+        // Token is valid! req.user now contains { id, username, role }
+        req.user = user;
+        next();
+    });
+};
+
+// ----------------------------------------------------------------------
+// 2. Role Authorization Middleware Factory
+// This function returns a middleware that checks if the user's role
+// is included in the list of allowed roles.
+// ----------------------------------------------------------------------
+const authorizeRole = (allowedRoles) => {
+    return (req, res, next) => {
+        // We assume authenticateToken has run and attached req.user
+        if (!req.user || !req.user.role) {
+            return res.status(401).json({ message: 'Authentication required' });
+        }
+
+        // Check if the user's role is in the array of allowed roles
+        if (!allowedRoles.includes(req.user.role)) {
+            // 403 Forbidden: Insufficient role permissions
+            return res.status(403).json({ message: 'Access denied: insufficient role' });
+        }
+
+        // User has the necessary role, proceed
+        next();
+    };
+};
+
+
+// ----------------------------------------------------------------------
+// 3. Public Route: Login (Token Issuance with Role)
+// Endpoint: POST /login
+// ----------------------------------------------------------------------
+app.post('/login', (req, res) => {
+    const { username, password } = req.body;
+
+    // Find user by username
+    const user = USERS.find(u => u.username === username && u.password === password);
+
+    if (!user) {
+        // 401 Unauthorized: Invalid credentials
+        return res.status(401).json({ message: 'Invalid username or password' });
+    }
+
+    // Create a payload for the JWT including the role
+    const userPayload = { 
+        id: user.id, 
+        username: user.username,
+        role: user.role // <-- IMPORTANT: Include the role
+    };
+
+    // Sign (issue) the JWT token
+    const token = jwt.sign(userPayload, JWT_SECRET, { expiresIn: TOKEN_EXPIRATION });
+
+    // Send the token back to the client
+    res.json({ token });
+});
+
+
+// ----------------------------------------------------------------------
+// 4. Role-Protected Routes
+// ----------------------------------------------------------------------
+
+// Admin-Only Route
+app.get('/admin-dashboard', 
+    authenticateToken, 
+    authorizeRole(['Admin']), 
+    (req, res) => {
+    res.json({
+        message: 'Welcome to the Admin dashboard.',
+        user: req.user
+    });
+});
+
+// Admin and Moderator Route
+app.get('/moderator-panel', 
+    authenticateToken, 
+    authorizeRole(['Admin', 'Moderator']), 
+    (req, res) => {
+    res.json({
+        message: 'Welcome to the Moderator and Admin panel.',
+        user: req.user
+    });
+});
+
+// General User Route (Accessible by Admin, Moderator, and Basic User)
+app.get('/user-profile', 
+    authenticateToken, 
+    authorizeRole(['Admin', 'Moderator', 'User']), 
+    (req, res) => {
+    res.json({
+        message: 'Welcome to your user profile.',
+        user: req.user
+    });
+});
+
+
+// ----------------------------------------------------------------------
+// Server Start
+// ----------------------------------------------------------------------
+app.listen(port, () => {
+  console.log(`RBAC Auth Server listening at http://localhost:${port}`);
+  console.log(`\nEndpoints:`);
+  console.log(` - POST /login (Public)`);
+  console.log(` - GET /admin-dashboard (Admin Only)`);
+  console.log(` - GET /moderator-panel (Admin and Moderator Only)`);
+  console.log(` - GET /user-profile (All Authenticated Users)`);
+});
