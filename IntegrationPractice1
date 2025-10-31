@@ -1,0 +1,27 @@
+const express = require('express');
+const cors = require('cors'); // Required for cross-origin requests from React
+const app = express();
+const port = 3001;
+
+// List of products to be served
+const products = [
+    { id: 1, name: 'Laptop', price: 1200 },
+    { id: 2, name: 'Mouse', price: 25 },
+    { id: 3, name: 'Keyboard', price: 45 },
+];
+
+// Enable CORS for all routes so the React app can access it
+app.use(cors());
+
+// Public route to fetch the product list
+app.get('/api/products', (req, res) => {
+    // Simulate a network delay
+    setTimeout(() => {
+        res.json(products);
+    }, 1000); 
+});
+
+app.listen(port, () => {
+    console.log(`Product API running at http://localhost:${port}`);
+    console.log(`Endpoint: GET http://localhost:${port}/api/products`);
+});
