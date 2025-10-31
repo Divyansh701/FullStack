@@ -1,0 +1,89 @@
+const express = require('express');
+const jwt = require('jsonwebtoken');
+const app = express();
+const port = 3000;
+
+// Middleware to parse JSON bodies from incoming requests
+app.use(express.json());
+
+// --- Configuration ---
+// Note: In a real application, keep this secret in an environment variable!
+const JWT_SECRET = 'your_super_secret_key_123';
+const SAMPLE_USER = { id: 1, username: 'testuser', password: 'password123' };
+const TOKEN_EXPIRATION = '1h';
+
+// ----------------------------------------------------------------------
+// 1. JWT Verification Middleware
+// ----------------------------------------------------------------------
+const authenticateToken = (req, res, next) => {
+    // Get the Authorization header (e.g., "Bearer <token>")
+    const authHeader = req.headers['authorization'];
+    // Extract the token (the part after "Bearer ")
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (token == null) {
+        // 401 Unauthorized: Token is missing
+        return res.status(401).json({ message: 'Token missing or malformed' });
+    }
+
+    // Verify the token
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) {
+            // 403 Forbidden: Token is invalid (e.g., expired, wrong signature)
+            return res.status(403).json({ message: 'Invalid or expired token' });
+        }
+        // Token is valid! Attach the decoded user payload to the request
+        req.user = user;
+        next(); // Proceed to the protected route handler
+    });
+};
+
+
+// ----------------------------------------------------------------------
+// 2. Public Route: Login (Token Issuance)
+// Endpoint: POST /login
+// ----------------------------------------------------------------------
+app.post('/login', (req, res) => {
+    const { username, password } = req.body;
+
+    // Check if credentials are valid (hardcoded check for simplicity)
+    if (username !== SAMPLE_USER.username || password !== SAMPLE_USER.password) {
+        // 401 Unauthorized: Invalid credentials
+        return res.status(401).json({ message: 'Invalid username or password' });
+    }
+
+    // Create a payload for the JWT (DON'T include the password!)
+    const userPayload = { id: SAMPLE_USER.id, username: SAMPLE_USER.username };
+
+    // Sign (issue) the JWT token
+    const token = jwt.sign(userPayload, JWT_SECRET, { expiresIn: TOKEN_EXPIRATION });
+
+    // Send the token back to the client
+    res.json({ token });
+});
+
+
+// ----------------------------------------------------------------------
+// 3. Protected Route
+// Endpoint: GET /protected
+// Middleware: authenticateToken ensures only valid tokens can reach this handler
+// ----------------------------------------------------------------------
+app.get('/protected', authenticateToken, (req, res) => {
+    // If execution reaches this point, the token is verified, and req.user contains the payload
+    res.json({
+        message: 'You have accessed a protected route!',
+        // The user object comes from the JWT payload
+        user: req.user
+    });
+});
+
+
+// ----------------------------------------------------------------------
+// Server Start
+// ----------------------------------------------------------------------
+app.listen(port, () => {
+  console.log(`JWT Auth Server listening at http://localhost:${port}`);
+  console.log(`\nEndpoints:`);
+  console.log(` - POST /login (Public)`);
+  console.log(` - GET /protected (Protected, requires JWT)`);
+});
