@@ -1,0 +1,112 @@
+
+import React, { useState } from 'react';
+
+// The main application component
+const App = () => {
+  // 1. State for form inputs (username and password)
+  const [formData, setFormData] = useState({
+    username: '',
+    password: '',
+  });
+
+  // 2. State for handling and displaying validation errors
+  const [errorMessage, setErrorMessage] = useState('');
+
+  // Destructure for easier access
+  const { username, password } = formData;
+
+  // 3. Handle real-time input changes
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    // Clear the error message as soon as the user starts typing
+    if (errorMessage) {
+        setErrorMessage('');
+    }
+    
+    setFormData(prevData => ({
+      ...prevData,
+      [name]: value,
+    }));
+  };
+
+  // 4. Handle form submission
+  const handleSubmit = (e) => {
+    e.preventDefault(); // Stop the browser from performing a full page reload
+
+    // Basic Validation Check
+    if (!username || !password) {
+      setErrorMessage('Please enter both username and password.');
+      return; // Stop execution if validation fails
+    }
+
+    // Success Logic: Log the data to the console
+    console.log('--- Login Successful ---');
+    console.log(`Username: ${username}`);
+    console.log(`Password: ${password}`); // Note: In a real app, never log plain passwords.
+    console.log('------------------------');
+
+    // Clear the form and the error message after successful submission
+    setFormData({
+      username: '',
+      password: '',
+    });
+    setErrorMessage('');
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+      <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-sm transition-all duration-300">
+        <h1 className="text-3xl font-bold text-gray-800 mb-6 text-center tracking-wide">
+          Login
+        </h1>
+        
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Username Input */}
+          <div className="relative">
+            <input
+              type="text"
+              name="username"
+              id="username"
+              value={username}
+              onChange={handleChange}
+              placeholder="Username"
+              className="border border-gray-300 p-3 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-150"
+              autoComplete="username"
+            />
+          </div>
+
+          {/* Password Input */}
+          <div className="relative">
+            <input
+              type="password"
+              name="password"
+              id="password"
+              value={password}
+              onChange={handleChange}
+              placeholder="Password"
+              className="border border-gray-300 p-3 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-150"
+              autoComplete="current-password"
+            />
+          </div>
+
+          {/* Error Message Display */}
+          {errorMessage && (
+            <p className="text-red-600 font-medium text-center text-sm">
+              {errorMessage}
+            </p>
+          )}
+
+          {/* Submit Button */}
+          <button
+            type="submit"
+            className="bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg w-full shadow-lg hover:bg-blue-700 transition duration-150 transform hover:scale-[1.01] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          >
+            Login
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default App;
