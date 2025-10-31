@@ -1,0 +1,55 @@
+// server.js
+const express = require("express");
+const app = express();
+
+// ================================
+// 1️⃣ Logging Middleware (Global)
+// ================================
+app.use((req, res, next) => {
+  const time = new Date().toISOString();
+  console.log(`[${time}] ${req.method} ${req.url}`);
+  next(); // pass control to next middleware
+});
+
+// ================================
+// 2️⃣ Authentication Middleware
+// ================================
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers["authorization"];
+
+  if (!authHeader) {
+    return res.status(401).json({ error: "Authorization header missing" });
+  }
+
+  // Format: "Bearer mysecrettoken"
+  const token = authHeader.split(" ")[1];
+
+  if (!token) {
+    return res.status(401).json({ error: "Token not provided" });
+  }
+
+  if (token !== "mysecrettoken") {
+    return res.status(403).json({ error: "Invalid token" });
+  }
+
+  next(); // token is valid → proceed
+};
+
+// ================================
+// 3️⃣ Routes
+// ================================
+app.get("/", (req, res) => {
+  res.send("Welcome to the Public Route! No authentication required.");
+});
+
+app.get("/protected", authenticateToken, (req, res) => {
+  res.send("Access granted ✅ You are viewing the protected route!");
+});
+
+// ================================
+// 4️⃣ Start Server
+// ================================
+const PORT = 5000;
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
+});
